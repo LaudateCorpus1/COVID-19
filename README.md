@@ -8,4 +8,5 @@ Click the red button below to access the list of notebook directly:
 
 Code, data, and computational resources related to COVID-19 for the Wolfram Language
 
-[![COVID-19 Visualizing Epidemic Data](Images/visualization-01.png)](Notebooks/COVID-19-Visualizing-Epidemic-Data.nb)
+[![COVID-19 Visualizing Epidemic Data](Images/visualization-01.png)](Computational-Essays/COVID-19-Visualizing-Epidemic-Data.nb)
+[![SIR Equation](Images/visualization-02.png)](Computational-Essays/SIR-Equation.nb)
