@@ -5,14 +5,14 @@ BeginPackage["COVID19`"]
 COVID19`MetroData
 COVID19`DeployMetroData
 Begin["`Private`"] 
-
+Clear[COVID19`MetroData,metroData];
 COVID19`MetroData[args___]:=Catch[metroData[args]]
 
 Options[COVID19`MetroData]=Options[metroData]={"UpdateData"->False,"SmoothingDays"->7,"MinimumCases"->50,"MinimumDeaths"->10,"MetroName"->""};
 
 Options[COVID19`DeployMetroData]=Join[Options[COVID19`MetroData],Options[CloudDeploy]]
 
-metroData[counties:{_Entity..},opts:OptionsPattern[]]:=Module[
+metroData[counties:{_Entity..},state_:None,opts:OptionsPattern[]]:=Module[
 	{timeseries, totalpop,mintime,maxtime, cases, deaths},
 	
 	updateProgress[$covidprogessid, "Getting Data From NY Times"];
@@ -42,6 +42,13 @@ metroData[counties:{_Entity..},opts:OptionsPattern[]]:=Module[
 		{mintime,maxtime},
 		OptionValue["MetroName"]<>"Metro Area COVID-19 Timelines",
 		opts
+	],
+	If[Head[state]===Entity,
+	updateProgress[$covidprogessid, "Creating State Testing Plots"];
+		Grid[{
+			{Style["State Testing Data from covidtracking.com",24],SpanFromLeft,""},
+			COVID19`StateTestingPlots[state,Sequence@@FilterRules[{opts},Options[COVID19`StateTestingPlots]]]}],
+		Nothing
 	]
 	,
 	updateProgress[$covidprogessid, "Creating Data Table"];
@@ -49,9 +56,9 @@ metroData[counties:{_Entity..},opts:OptionsPattern[]]:=Module[
 	}
 ]
 
-metroData[area_, opts:OptionsPattern[]]:=Block[{$covidprogessid=CreateUUID[]},
+metroData[area_String, rest___]:=Block[{$covidprogessid=CreateUUID[]},
 	updateProgress[$covidprogessid, "Finding Counties"];
-	metroData[MetroAreaCounties[area],opts]
+	metroData[MetroAreaCounties[area],rest]
 ]
 
 
@@ -93,6 +100,7 @@ Grid[{
   	Append[differencesPlots[{cases,casesopts},{deaths,deathsopts}, smoothing],SpanFromAbove],
   	Append[ratioPlots[{cases,casesopts},{deaths,deathsopts}, smoothing],SpanFromAbove],
   	Append[alignedGrowthPlots[{alignedcases,casesopts},{aligneddeaths,deathsopts},{OptionValue["MinimumCases"],OptionValue["MinimumDeaths"]}],SpanFromAbove]
+  	
   }]
 ]
 
@@ -120,16 +128,31 @@ tabledata[pop_,ts_] := With[{path = Normal[ts]},
 Options[COVID19`DeployMetroData]=Join[Options[COVID19`MetroData],Options[CloudDeploy]]
 
 DeployMetroData[area_,location_, opts:OptionsPattern[]]:=(Quiet[DeleteObject[CloudObject[location]];
-	With[{res=COVID19`MetroData[area, Sequence@@FilterRules[{opts},Options[COVID19`MetroData]]]},
-		CloudDeploy[Notebook[{Cell["Timelines", "Section"],
+	With[{nb=metroDataNotebook[area,opts]},
+		CloudDeploy[nb, location, Sequence@@FilterRules[{opts},Options[CloudDeploy]],
+		 Permissions -> "Public"]
+		]
+	
+])
+
+metroDataNotebook[{metro_String,state_},opts___]:=With[{res=COVID19`MetroData[metro,state, Sequence@@FilterRules[{opts},Options[COVID19`MetroData]]]},
+		Notebook[{Cell["Metro Area Timelines", "Section"],
+		   Cell[BoxData[ToBoxes[res[[1]]]], "Output"],
+		   Cell["State Testing Timelines", "Section"],
+		   Cell[BoxData[ToBoxes[res[[2]]]], "Output"],
+		   Cell["Metro Area Data", "Section"],
+		   Cell[BoxData[ToBoxes[res[[3]]]], "Output"]
+		   }, "ClickToCopyEnabled" -> 
+		   False]
+		]
+
+metroDataNotebook[metro_String,opts___]:=With[{res=COVID19`MetroData[area, Sequence@@FilterRules[{opts},Options[COVID19`MetroData]]]},
+		Notebook[{Cell["Timelines", "Section"],
 		   Cell[BoxData[ToBoxes[res[[1]]]], "Output"],
 		   Cell["Data", "Section"],
 		   Cell[BoxData[ToBoxes[res[[2]]]], "Output"]
 		   }, "ClickToCopyEnabled" -> 
-		   False], location, Sequence@@FilterRules[{opts},Options[CloudDeploy]],
-		 Permissions -> "Public"]
+		   False]
 		]
-])
-
 End[] 
 EndPackage[]

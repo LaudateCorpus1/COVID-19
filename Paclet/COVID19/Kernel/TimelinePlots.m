@@ -48,6 +48,7 @@ alignedGrowthPlots[{alignedcases_,casesopts_},{aligneddeaths_,deathsopts_}, {min
    	growthPlotWithTrendLines[aligneddeaths,"Deaths", Sequence @@ Normal@KeyDrop[deathsopts, PlotRange], 
     	PlotLabel -> "Aligned Cumulative Plot (Log vs Days since "<>ResourceFunction["OrdinalNumberString"][mindeaths]<>" death)"]
   	}
+
   	
 End[] 
 EndPackage[]
