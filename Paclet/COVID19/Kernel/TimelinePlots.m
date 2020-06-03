@@ -21,8 +21,8 @@ population[counties_,"Metro Area Total"|"Combined Total"|$entitytotallabel] := (
 
 perCapitaPlots[{cases_,casesopts_},{deaths_,deathsopts_},counties_]:={
 	updateProgress[$covidprogessid, "Per Capita Plots"];
-	DateListLogPlot[cases[MapIndexed[#1/QuantityMagnitude[population[counties,#2[[1]]]] &]], casesopts, PlotLabel -> "Cumulative per Capita (Log)"],
-   	DateListLogPlot[deaths[MapIndexed[#1/QuantityMagnitude[population[counties,#2[[1]]]] &]],deathsopts, PlotLabel -> "Cumulative per Capita (Log)"]
+	DateListPlot[cases[MapIndexed[1000*#1/QuantityMagnitude[population[counties,#2[[1]]]] &]], casesopts, PlotLabel -> "Cumulative per 1000 pop"],
+   	DateListPlot[deaths[MapIndexed[1000*#1/QuantityMagnitude[population[counties,#2[[1]]]] &]],deathsopts, PlotLabel -> "Cumulative per 1000 pop"]
   	}
    
 differencesPlots[{cases_,casesopts_},{deaths_,deathsopts_}, smoothing_]:={

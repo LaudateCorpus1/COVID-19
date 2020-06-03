@@ -8,12 +8,12 @@ Begin["`Private`"]
 Clear[COVID19`MetroData,metroData];
 COVID19`MetroData[args___]:=Catch[metroData[args]]
 
-Options[COVID19`MetroData]=Options[metroData]={"UpdateData"->False,"SmoothingDays"->7,"MinimumCases"->50,"MinimumDeaths"->10,"MetroName"->""};
+Options[COVID19`MetroData]=Options[metroData]={"UpdateData"->False,"SmoothingDays"->7,"MinimumCases"->100,"MinimumDeaths"->30,"MetroName"->""};
 
 Options[COVID19`DeployMetroData]=Join[Options[COVID19`MetroData],Options[CloudDeploy]]
 
 metroData[counties:{_Entity..},state_:None,opts:OptionsPattern[]]:=Module[
-	{timeseries, totalpop,mintime,maxtime, cases, deaths},
+	{timeseries,mintime,maxtime, cases, deaths},
 	
 	updateProgress[$covidprogessid, "Getting Data From NY Times"];
 	timeseries = If[TrueQ[OptionValue["UpdateData"]],
@@ -46,8 +46,8 @@ metroData[counties:{_Entity..},state_:None,opts:OptionsPattern[]]:=Module[
 	If[Head[state]===Entity,
 	updateProgress[$covidprogessid, "Creating State Testing Plots"];
 		Grid[{
-			{Style["State Testing Data from covidtracking.com",24],SpanFromLeft,""},
-			COVID19`StateTestingPlots[state,Sequence@@FilterRules[{opts},Options[COVID19`StateTestingPlots]]]}],
+			{Style["State Testing Data from covidtracking.com",24]},
+			{Row@COVID19`StateTestingPlots[state,Sequence@@FilterRules[{opts},Options[COVID19`StateTestingPlots]]]}}],
 		Nothing
 	]
 	,

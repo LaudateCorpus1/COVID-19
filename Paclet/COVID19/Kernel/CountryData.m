@@ -67,8 +67,6 @@ dailyPeakPlot[countries:{_Entity..}|All|Automatic,opts:OptionsPattern[COVID19`Da
 	diffs=countryTimelines[countries,opts][All, All, (MovingAverage[#, Quantity[OptionValue["SmoothingDays"], "Days"]] &) /* Differences];
 	pastpeak = diffs[Select[#Deaths["LastValue"]/Max[#Deaths] < OptionValue["MaximumPostPeakRatio"] &]];
 	maxdifftimes = pastpeak[All, All, TakeLargestBy[#["Path"], Last, 1][[1]] &];
-	
-	
 	p1 = DateListPlot[
      Labeled[#[[2]], Style[N@#[[1, 2]], Darker@Blue], 
       DateObject@#[[1, 1]]], PlotRange -> Full, 
@@ -78,7 +76,7 @@ dailyPeakPlot[countries:{_Entity..}|All|Automatic,opts:OptionsPattern[COVID19`Da
      Labeled[OptionValue["DeathValueMagnification"]*#[[2]], Style[N@#[[1, 2]], Darker@Green], 
       DateObject@#[[1, 1]]], PlotRange -> Full, 
      PlotStyle -> Green] & /@ Merge[{Normal@maxdifftimes[All, "Deaths"],Normal@pastpeak[All, "Deaths"]}, Identity];
-	Merge[{p1, p2}, Show]
+	Merge[{p1, p2, Normal@maxdifftimes[All, UnitConvert[Quantity[#Deaths[[1]] - #Cases[[1]], "Seconds"], "Days"] &]}, Labeled[Show[Most[#]], Last[#], Right] &]
 ]
 
 countryTimelines[countries_,opts:OptionsPattern[COVID19`DailyPeakPlot]]:=Block[{timeseries},
