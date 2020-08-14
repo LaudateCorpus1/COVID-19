@@ -63,7 +63,7 @@ selectCountyFunc[___]:=Throw[$Failed]
 growthPlotWithTrendLines[data_, type_, opts___]:=
 		Block[{$maxTrendLineHeight=Log[2, data[Max, Max]]},
 			ListLogPlot[data, opts, Joined -> True, 
-				Epilog -> {Dashed, makeline[{type,data[1, #["LastTime"] - #["FirstTime"] &]*.9}, #,FilterRules[{opts}, Options[usCountyGrowthPlot]]] & /@ {5, 10,20,50}}]
+				Epilog -> {Dashed, makeline[{type,data[1, #["LastTime"] - #["FirstTime"] &]*.9}, #,FilterRules[{opts}, Options[usCountyGrowthPlot]]] & /@ {10,50,100,200}}]
 		]
 
 tozerotime[ts_] := TimeSeries[With[{first = #[[1, 1]]},
@@ -76,9 +76,10 @@ $maxTrendLineHeight=7;
 
 linedays[{"Deaths",n_}] = n;
 linedays["Deaths"] = 12;
-linedays[_] = 30;
+linedays[_] = 50;
 startlinevalue["Deaths"|{"Deaths",_},opts:OptionsPattern[usCountyGrowthPlot]] := 1.5*Log[OptionValue["MinimumDeaths"]];
-startlinevalue["Cases"|{"Cases",_},opts:OptionsPattern[usCountyGrowthPlot]] := 1.2*Log[OptionValue["MinimumCases"]];
+(* 50->1.2, 1000->1.8 *)
+startlinevalue["Cases"|{"Cases",_},opts:OptionsPattern[usCountyGrowthPlot]] := 1.8*Log[OptionValue["MinimumCases"]];
 startlinevalue[_] := 4;
 
 makeline[t_, a_, opts:OptionsPattern[usCountyGrowthPlot]] := With[{sl = startlinevalue[t, opts], ld = linedays[t]},
