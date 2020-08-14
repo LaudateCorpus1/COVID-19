@@ -21,7 +21,7 @@ usCountyGrowthPlot[counties:{_Entity...}|Automatic,opts:OptionsPattern[]]:=(
 	updateProgress[$covidprogessid, "Creating Plot"];
 	With[{data=getCountyTimeLines[counties,opts]},
 		Block[{$maxTrendLineHeight=2.*Log[2, data[Max, Max]]},
-		DateListLogPlot[data, opts,countygrowthplotopts[data[1, #["LastTime"] - #["FirstTime"] &]*.7]]
+		DateListLogPlot[data, opts,countygrowthplotopts[data[1, #["LastTime"] - #["FirstTime"] &]*.7,FilterRules[{opts}, Options[usCountyGrowthPlot]]]]
 		]
 	]
 	)
@@ -34,9 +34,9 @@ usCountyGrowthPlot[expr_,opts:OptionsPattern[]]:=usCountyGrowthPlot[{expr},opts]
 
 usCountyGrowthPlot[___]:=$Failed
 
-countygrowthplotopts[days_]:=Sequence@@{FrameTicks->{Automatic, Automatic},PlotRange->{Automatic,{5,Automatic}},
+countygrowthplotopts[days_,opts:OptionsPattern[usCountyGrowthPlot]]:=Sequence@@{FrameTicks->{Automatic, Automatic},PlotRange->{Automatic,{5,Automatic}},
 	PlotLegends->None,PlotLabels->Placed[Automatic,Right,StringDelete[CommonName[#],", United States"]&],
-	Epilog->{Dashed,makeline[{"Deaths",days},#]&/@{3,5,10,20}},ImageSize->1400};
+	Epilog->{Dashed,makeline[{"Deaths",days},#,FilterRules[{opts}, Options[usCountyGrowthPlot]]]&/@{5,10,20,50}},ImageSize->1400};
 
 getCountyTimeLines[counties_, OptionsPattern[usCountyGrowthPlot]]:=Module[{timeseries},
 	
@@ -63,7 +63,7 @@ selectCountyFunc[___]:=Throw[$Failed]
 growthPlotWithTrendLines[data_, type_, opts___]:=
 		Block[{$maxTrendLineHeight=Log[2, data[Max, Max]]},
 			ListLogPlot[data, opts, Joined -> True, 
-				Epilog -> {Dashed, makeline[{type,data[1, #["LastTime"] - #["FirstTime"] &]*.9}, #] & /@ {3, 5, 10,20}}]
+				Epilog -> {Dashed, makeline[{type,data[1, #["LastTime"] - #["FirstTime"] &]*.9}, #,FilterRules[{opts}, Options[usCountyGrowthPlot]]] & /@ {10,50,100,200}}]
 		]
 
 tozerotime[ts_] := TimeSeries[With[{first = #[[1, 1]]},
@@ -76,11 +76,13 @@ $maxTrendLineHeight=7;
 
 linedays[{"Deaths",n_}] = n;
 linedays["Deaths"] = 12;
-linedays[_] = 20;
-startlinevalue["Deaths"|{"Deaths",_}] := 2.4;
+linedays[_] = 50;
+startlinevalue["Deaths"|{"Deaths",_},opts:OptionsPattern[usCountyGrowthPlot]] := 1.5*Log[OptionValue["MinimumDeaths"]];
+(* 50->1.2, 1000->1.8 *)
+startlinevalue["Cases"|{"Cases",_},opts:OptionsPattern[usCountyGrowthPlot]] := 1.8*Log[OptionValue["MinimumCases"]];
 startlinevalue[_] := 4;
 
-makeline[t_, a_] := With[{sl = startlinevalue[t], ld = linedays[t]},
+makeline[t_, a_, opts:OptionsPattern[usCountyGrowthPlot]] := With[{sl = startlinevalue[t, opts], ld = linedays[t]},
   N@{Darker[ColorData["TemperatureMap"][3/4 + 4/(12+a)], .2],
     Line[{{0, sl}, {ld, sl + (ld/a)}}],
     Text["Doubles every " <> ToString[a] <> " days", 

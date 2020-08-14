@@ -1,34 +1,22 @@
 (* Wolfram Language Package *)
 
 BeginPackage["COVID19`"]
-
 COVID19`MetroData
 COVID19`DeployMetroData
 Begin["`Private`"] 
 Clear[COVID19`MetroData,metroData];
 COVID19`MetroData[args___]:=Catch[metroData[args]]
 
-Options[COVID19`MetroData]=Options[metroData]={"UpdateData"->False,"SmoothingDays"->7,"MinimumCases"->50,"MinimumDeaths"->10,"MetroName"->""};
+Options[COVID19`MetroData]=Options[metroData]={"UpdateData"->False,"SmoothingDays"->7,"MinimumCases"->100,"MinimumDeaths"->30,"MetroName"->""};
 
 Options[COVID19`DeployMetroData]=Join[Options[COVID19`MetroData],Options[CloudDeploy]]
 
 metroData[counties:{_Entity..},state_:None,opts:OptionsPattern[]]:=Module[
-	{timeseries, totalpop,mintime,maxtime, cases, deaths},
+	{timeseries,mintime,maxtime, cases, deaths},
 	
-	updateProgress[$covidprogessid, "Getting Data From NY Times"];
-	timeseries = If[TrueQ[OptionValue["UpdateData"]],
-		COVID19`NYTimesData["USCountiesTimeSeries","New"],
-		COVID19`NYTimesData["USCountiesTimeSeries"]
-	];
-	
-	updateProgress[$covidprogessid, "Processing data"];
-	timeseries = KeyTake[timeseries[All, KeyDrop["State"]], counties];
-	If[!TrueQ[Length[timeseries]>0],Throw[Failure["nocountydata",<|"Message"->"No Counties matched your spec."|>]]];
+	timeseries = metroDataTimeSeries[counties, opts];
 	mintime = timeseries[Min, All, #["FirstDate"] &];
 	maxtime = timeseries[Max, All, #["LastDate"] &];
-	updateProgress[$covidprogessid, "Totalling Metro Area"];
-	timeseries = timeseries[All, All, TimeSeries[TimeSeriesInsert[#, {mintime, 0}]["DatePath"], 
- 			ResamplingMethod -> {"Interpolation", InterpolationOrder -> 0}] &];
 	timeseries = Prepend[timeseries, "Metro Area Total" -> Normal[timeseries[Total]]];
 	
 	updateProgress[$covidprogessid, "Formatting Time Series"];
@@ -46,13 +34,21 @@ metroData[counties:{_Entity..},state_:None,opts:OptionsPattern[]]:=Module[
 	If[Head[state]===Entity,
 	updateProgress[$covidprogessid, "Creating State Testing Plots"];
 		Grid[{
-			{Style["State Testing Data from covidtracking.com",24],SpanFromLeft,""},
-			COVID19`StateTestingPlots[state,Sequence@@FilterRules[{opts},Options[COVID19`StateTestingPlots]]]}],
+			{Style["State Testing Data from covidtracking.com",24]},
+			{Row@COVID19`StateTestingPlots[state,Sequence@@FilterRules[{opts},Options[COVID19`StateTestingPlots]]]}}],
 		Nothing
 	]
 	,
 	updateProgress[$covidprogessid, "Creating Data Table"];
-	Labeled[tableData[timeseries[All, {"Cases", "Deaths"}]],DateString[maxtime, "Date"], Top]
+	Labeled[tableData[timeseries[All, {"Cases", "Deaths"}]],DateString[maxtime, "Date"], Top],
+	
+	If[counties===MetroAreaCounties["STL"],
+	updateProgress[$covidprogessid, "Creating Regional Hospitalization Plots"];
+		Echo@Grid[{
+			{Style[Row[{"Metro Area Hospital Data from ",Hyperlink["SLU OpenGIS","https://github.com/slu-openGIS/MO_HEALTH_Covid_Tracking"]}],24]},
+			{Row@prenerSTLHospitalData[]}}],
+		Nothing
+	]
 	}
 ]
 
@@ -64,7 +60,25 @@ metroData[area_String, rest___]:=Block[{$covidprogessid=CreateUUID[]},
 
 metroData[___]:=$Failed
 
-stylemap[counties_]:= (stylemap[counties]=MapIndexed[# -> ColorData[1][#2[[1]]] &,Prepend[counties, $entitytotallabel]]);
+metroDataTimeSeries[counties_,OptionsPattern[metroData]]:=Module[
+	{timeseries,mintime,maxtime},
+	updateProgress[$covidprogessid, "Getting Data From NY Times"];
+	timeseries = If[TrueQ[OptionValue["UpdateData"]],
+		COVID19`NYTimesData["USCountiesTimeSeries","New"],
+		COVID19`NYTimesData["USCountiesTimeSeries"]
+	];
+	
+	updateProgress[$covidprogessid, "Processing data"];
+	timeseries = KeyTake[timeseries[All, KeyDrop["State"]], counties];
+	If[!TrueQ[Length[timeseries]>0],Throw[Failure["nocountydata",<|"Message"->"No Counties matched your spec."|>]]];
+	mintime = timeseries[Min, All, #["FirstDate"] &];
+	updateProgress[$covidprogessid, "Totalling Metro Area"];
+	timeseries[All, All, TimeSeries[TimeSeriesInsert[#, {mintime, 0}]["DatePath"], 
+ 			ResamplingMethod -> {"Interpolation", InterpolationOrder -> 0}] &]
+]
+
+
+stylemap[counties_]:= (stylemap[counties]=Prepend[MapIndexed[# -> ColorData[3][(1+#2[[1]])/.{3->18}] &,counties],$entitytotallabel->Directive[Thickness[.005],Black]  ]);
 
 optsfunc[counties_,data_,start_] := {PlotRange -> {{start, Automatic}, Full},
    ImageSize -> 400, PlotLegends -> None, 
@@ -78,8 +92,9 @@ columnLabels[minc_,mind_]:=Style[#, 18, Italic] & /@ {
 		"Cases (> "<>ToString[minc]<>")", "Deaths (> " <> ToString[mind] <> ")"}
 
 $CovidEntityType="USCounty";
-$entitytotallabel:="Combined Total"/;$CovidEntityType==="Country"
-$entitytotallabel:="Metro Area Total"
+Clear[$entitytotallabel];
+$entitytotallabel:="Metro Area Total"/;$CovidEntityType==="USCounty"
+$entitytotallabel:="Combined Total"
 
 countyLegend[counties_, cases_, deaths_]:=SwatchLegend[Lookup[stylemap[counties], #], #] &@
     ResourceFunction["SortLike"][Normal[Union[Keys[cases], Keys[deaths]]], 
@@ -98,7 +113,9 @@ Grid[{
   	Append[cumulativePlots[{cases,casesopts},{deaths,deathsopts}],countyLegend[counties, cases, deaths]],
 	Append[perCapitaPlots[{cases,casesopts},{deaths,deathsopts},counties],SpanFromAbove],
   	Append[differencesPlots[{cases,casesopts},{deaths,deathsopts}, smoothing],SpanFromAbove],
+  	Append[differencesPerCapitaPlots[{cases,casesopts},{deaths,deathsopts}, smoothing,counties],SpanFromAbove],
   	Append[ratioPlots[{cases,casesopts},{deaths,deathsopts}, smoothing],SpanFromAbove],
+  	Append[movingRatioPlots[{cases,casesopts},{deaths,deathsopts}, smoothing],SpanFromAbove],
   	Append[alignedGrowthPlots[{alignedcases,casesopts},{aligneddeaths,deathsopts},{OptionValue["MinimumCases"],OptionValue["MinimumDeaths"]}],SpanFromAbove]
   	
   }]
@@ -136,12 +153,19 @@ DeployMetroData[area_,location_, opts:OptionsPattern[]]:=(Quiet[DeleteObject[Clo
 ])
 
 metroDataNotebook[{metro_String,state_},opts___]:=With[{res=COVID19`MetroData[metro,state, Sequence@@FilterRules[{opts},Options[COVID19`MetroData]]]},
-		Notebook[{Cell["Metro Area Timelines", "Section"],
-		   Cell[BoxData[ToBoxes[res[[1]]]], "Output"],
+		Notebook[Flatten@{Cell["Metro Area Timelines", "Section"],
+		   Cell[BoxData[ToBoxes[res[[1]]]], "Output"], 
+		   If[Length[res]>3,
+		   	{Cell["Metro Area Hospital Data", "Section"],
+			   Cell[BoxData[ToBoxes[res[[4]]]], "Output"]},
+			   Nothing
+		   	
+		   ],
 		   Cell["State Testing Timelines", "Section"],
 		   Cell[BoxData[ToBoxes[res[[2]]]], "Output"],
 		   Cell["Metro Area Data", "Section"],
 		   Cell[BoxData[ToBoxes[res[[3]]]], "Output"]
+		  
 		   }, "ClickToCopyEnabled" -> 
 		   False]
 		]

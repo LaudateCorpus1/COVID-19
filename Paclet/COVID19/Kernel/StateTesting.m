@@ -16,7 +16,6 @@ stateTestingPlots[state_Entity,OptionsPattern[]] := With[{statedata=If[TrueQ[Opt
 	COVID19`COVIDTrackingData["StatesDaily","New"],
 	COVID19`COVIDTrackingData["StatesDaily"]
 ][GroupBy["State"]][state][stateDataToTimeSeries]},
-Global`sd=statedata;
 	{
 DateListPlot[{
 	If[
@@ -24,21 +23,37 @@ DateListPlot[{
      	Callout[#,"x "<>ToString[OptionValue["TotalTestsScale"]],Top]&,
      	Identity][
      statedata[(#Positive + #Negative)/OptionValue["TotalTestsScale"] & ]], 
-     statedata[All, Differences][All, MovingAverage[# , 
+     statedata[{"Positive","Negative"}, Differences][All, MovingAverage[# , 
      	Quantity[OptionValue["SmoothingDays"], "Days"]] & ][((#Positive + #Negative) &)]
 		},
-     PlotRange -> {{"March 28", Automatic}, Full}, ImageSize -> 400,PlotStyle->{Orange,Blue},
-     PlotLabel -> "COVID-19 Test Count "<>CommonName[state]]
+		stateTestingPlotOptions[state,"Count"], ImageSize -> 400,PlotStyle->{Orange,Blue}
+     ]
      ,
 DateListPlot[{
      statedata[#Positive/(#Positive + #Negative) & ], 
-     statedata[All, Differences][All, MovingAverage[# , 
+     statedata[{"Positive","Negative"}, Differences][All, MovingAverage[# , 
      	Quantity[OptionValue["SmoothingDays"], "Days"]] & ][(#Positive/(#Positive + #Negative) &)]
 		},
-     PlotRange -> {{"March 28", Automatic}, {0.05, 0.15}}, ImageSize -> 400,PlotStyle->{Orange,Blue},
-     PlotLabel -> "COVID-19 Positive Testing Rate in "<>CommonName[state]],
+		stateTestingPlotOptions[state,"Rate"], ImageSize -> 400,PlotStyle->{Orange,Blue}
+     ],
+   DateListPlot[{
+     statedata["HospitalizedCurrently"],
+     MovingAverage[statedata["HospitalizedCurrently"] , 
+     	Quantity[OptionValue["SmoothingDays"], "Days"]]
+		},
+		stateTestingPlotOptions[state,"Hospitalized"], ImageSize -> 400,PlotStyle->{Purple,Blue}
+     ],
+   DateListPlot[{
+     statedata["OnVentilatorCurrently"],
+     MovingAverage[statedata["OnVentilatorCurrently"] , 
+     	Quantity[OptionValue["SmoothingDays"], "Days"]]
+		},
+		stateTestingPlotOptions[state,"On Ventilator"], ImageSize -> 400,PlotStyle->{Purple,Blue}
+     ]    
      
- SwatchLegend[{Orange,Blue},{"Cumulative",ToString[OptionValue["SmoothingDays"]]<>" Day Average"}]
+     ,
+     
+ SwatchLegend[{Orange,Blue,Purple},{"Cumulative",ToString[OptionValue["SmoothingDays"]]<>" Day Average","Daily"}]
 }
 ]
 
@@ -49,7 +64,39 @@ stateDataToTimeSeries=(AssociationMap[
       Function[key, 
        TimeSeries[Lookup[#1, key], {Lookup[#1, "Date"]}]], 
              {"Positive", "Negative", 
-       "Death"}]&)
+       "Death","HospitalizedCurrently","OnVentilatorCurrently"}]&)
 	
+	
+stateTestingPlotOptions[Entity["AdministrativeDivision", {"Missouri", "UnitedStates"}],"Count"]:=Sequence@@{
+     PlotRange -> {{"March 28", Automatic}, Automatic},
+     PlotLabel->Grid[{{"COVID-19 Test Count in Missouri"},
+     	{Style["Virus and Antibody tests were combined before May 22",10]}},Aligment->Center],
+     Epilog->{Dashed,Line[{{{2020,05,22},0},{{2020,05,22},10^10}}],Opacity[.3],Red,Rectangle[{{2020,05,22},0},{{2020,05,30},10^10}]}
+     	
+}
+	
+stateTestingPlotOptions[Entity["AdministrativeDivision", {"Missouri", "UnitedStates"}],"Rate"]:=Sequence@@{
+     PlotRange -> {{"March 28", Automatic}, Automatic},
+     PlotLabel->Grid[{{"COVID-19 Positive Testing Rate in Missouri"},
+     	{Style["Virus and Antibody tests were combined before May 22",10]}},Aligment->Center],
+     Epilog->{Dashed,Line[{{{2020,05,22},0},{{2020,05,22},1}}],Opacity[.3],Red,Rectangle[{{2020,05,22},0},{{2020,05,30},1}]}
+}
+
+
+stateTestingPlotOptions[state_,"Count"]:=Sequence@@{
+     PlotRange -> {{"March 28", Automatic}, Automatic},
+     PlotLabel->"COVID-19 Test Count in "<>StringReplace[CommonName[state],", United States"->""]}
+     
+     
+stateTestingPlotOptions[state_,"Rate"]:=Sequence@@{
+     PlotRange -> {{"March 28", Automatic}, Automatic},
+     PlotLabel->"COVID-19 Positive Testing Rate in "<>StringReplace[CommonName[state],", United States"->""]}
+     
+	
+stateTestingPlotOptions[state_,str_]:=Sequence@@{
+     PlotRange -> {{"March 28", Automatic}, Automatic},
+     PlotLabel->"COVID-19 "<>str<>" in "<>StringReplace[CommonName[state],", United States"->""]}
+	
+     
 End[] 
 EndPackage[]
